@@ -33,6 +33,11 @@ repse-web = "repse.web:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/repse"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# La landing vive en landing/public (fuente única, también la sirve el worker
+# de Cloudflare); se incrusta en el wheel para que Render la sirva en /.
+"landing/public/index.html" = "repse/landing.html"
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

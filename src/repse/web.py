@@ -32,7 +32,13 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 MCP_PATH = "/connect"
-_LANDING = Path(__file__).resolve().parents[2] / "landing" / "public" / "index.html"
+# Fuente única: landing/public/index.html (repo, para dev y el worker de
+# Cloudflare). En el wheel viaja incrustada como repse/landing.html
+# (force-include en pyproject) porque landing/ no se empaqueta.
+_LANDING_CANDIDATES = (
+    Path(__file__).resolve().parent / "landing.html",
+    Path(__file__).resolve().parents[2] / "landing" / "public" / "index.html",
+)
 
 
 class BearerAuthMiddleware(BaseHTTPMiddleware):
@@ -70,10 +76,12 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
 
 
 async def _landing(request: Request) -> HTMLResponse:
-    try:
-        return HTMLResponse(_LANDING.read_text(encoding="utf-8"))
-    except OSError:
-        return HTMLResponse("<h1>REPSE MCP</h1><p>Landing no disponible.</p>", status_code=200)
+    for candidate in _LANDING_CANDIDATES:
+        try:
+            return HTMLResponse(candidate.read_text(encoding="utf-8"))
+        except OSError:
+            continue
+    return HTMLResponse("<h1>REPSE MCP</h1><p>Landing no disponible.</p>", status_code=200)
 
 
 async def _health(request: Request) -> PlainTextResponse:

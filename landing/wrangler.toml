@@ -1,5 +1,9 @@
 name = "repse-landing"
 compatibility_date = "2026-01-01"
 
+routes = [
+  { pattern = "repse.watr.mx", custom_domain = true }
+]
+
 [assets]
 directory = "./public"
