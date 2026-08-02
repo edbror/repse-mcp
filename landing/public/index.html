@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REPSE MCP — verifica proveedores REPSE desde tu agente | WATR</title>
+<meta name="description" content="MCP server que consulta el Padrón Público REPSE de la STPS en vivo. Verifica vigencia por RFC, en lote, desde Claude o cualquier cliente MCP.">
+<style>
+  :root{--navy:#0E1B2C;--verde:#2E9E6B;--hueso:#F5F3EF;--gris:#8A94A6;--linea:#1E2C40}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--navy);color:var(--hueso);font:16px/1.6 "Archivo",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:0 24px}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--verde)}
+  header{padding:72px 0 56px;border-bottom:1px solid var(--linea)}
+  h1{font-size:clamp(32px,5.2vw,52px);line-height:1.12;letter-spacing:-.02em;margin:18px 0 20px;font-weight:600}
+  .lede{font-size:clamp(17px,2.2vw,20px);color:#C9D1DE;max-width:62ch}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+  .btn{display:inline-block;padding:13px 22px;border-radius:2px;text-decoration:none;font-weight:600;font-size:15px}
+  .btn-p{background:var(--verde);color:#06110A}
+  .btn-s{border:1px solid var(--linea);color:var(--hueso)}
+  section{padding:56px 0;border-bottom:1px solid var(--linea)}
+  h2{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--verde);font-family:"IBM Plex Mono",Menlo,monospace;margin-bottom:28px;font-weight:500}
+  .grid{display:grid;gap:24px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .card{border:1px solid var(--linea);padding:22px;border-radius:2px}
+  .card h3{font-size:15px;margin-bottom:8px;font-family:"IBM Plex Mono",Menlo,monospace;color:var(--hueso);font-weight:500}
+  .card p{font-size:14.5px;color:var(--gris);line-height:1.55}
+  pre{background:#0A1522;border:1px solid var(--linea);padding:18px;overflow-x:auto;border-radius:2px;font-size:13.5px;line-height:1.7;color:#C9D1DE}
+  pre .k{color:var(--verde)}
+  ul{list-style:none} li{padding:11px 0;border-bottom:1px solid var(--linea);color:#C9D1DE;font-size:15px}
+  li:last-child{border:0} li b{color:var(--hueso);font-weight:600}
+  .estados{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .tag{font-family:"IBM Plex Mono",Menlo,monospace;font-size:11.5px;padding:5px 10px;border:1px solid var(--linea);border-radius:2px;color:var(--gris)}
+  .tag.ok{color:var(--verde);border-color:#1E4633}
+  .tag.bad{color:#E4796B;border-color:#4A2620}
+  footer{padding:40px 0 64px;color:var(--gris);font-size:13.5px}
+  footer a{color:var(--gris)}
+  .nota{margin-top:14px;font-size:12.5px;color:#6B7688;max-width:70ch;line-height:1.6}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="eyebrow">WATR · MCP Suite</div>
+  <h1>Verifica REPSE antes de dar de alta o pagar a un proveedor.</h1>
+  <p class="lede">MCP server que consulta el Padrón Público de Contratistas de Servicios Especializados de la STPS <b>en vivo</b>, desde Claude o cualquier cliente MCP. Un RFC o una cartera completa, con veredicto accionable.</p>
+  <div class="cta">
+    <a class="btn btn-p" href="#conectar">Conectar</a>
+    <a class="btn btn-s" href="https://repse.stps.gob.mx/" target="_blank" rel="noopener">Fuente oficial STPS</a>
+  </div>
+</div></header>
+
+<section><div class="wrap">
+  <h2>El problema</h2>
+  <div class="grid">
+    <div class="card"><h3>Hoy es manual</h3><p>Entrar al portal, capturar RFC por RFC, leer la fecha e interpretarla. No escala a un catálogo de compras.</p></div>
+    <div class="card"><h3>El costo del error</h3><p>Sin REPSE vigente, el contratante pierde la deducción de IVA e ISR de esas facturas y asume responsabilidad solidaria como patrón.</p></div>
+    <div class="card"><h3>Vence sin avisar</h3><p>El registro dura 3 años y exige declaración cuatrimestral. Un proveedor aprobado hace un año puede estar vencido hoy.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Tools</h2>
+  <ul>
+    <li><b class="mono">verificar_repse(termino)</b> — RFC, folio o razón social → vigencia, fecha de vencimiento y actividades especializadas autorizadas.</li>
+    <li><b class="mono">verificar_lote(rfcs)</b> — cartera completa → conteos y <b>sólo</b> los proveedores que requieren acción.</li>
+    <li><b class="mono">buscar_padron(texto)</b> — búsqueda por razón social en el padrón.</li>
+    <li><b class="mono">estado_fuente()</b> — disponibilidad y latencia del portal de la STPS.</li>
+  </ul>
+  <div class="estados">
+    <span class="tag ok">VIGENTE</span><span class="tag">POR_VENCER</span>
+    <span class="tag bad">VENCIDO</span><span class="tag bad">SIN_REGISTRO</span><span class="tag">INDETERMINADO</span>
+  </div>
+  <p class="nota">El booleano <span class="mono">vigente</span> es el que debe gobernar un bloqueo de alta o de pago. Verifica además que la actividad autorizada cubra el servicio contratado: vigente para limpieza industrial no autoriza vigilancia.</p>
+</div></section>
+
+<section id="conectar"><div class="wrap">
+  <h2>Conectar</h2>
+  <pre><span class="k">// Claude Desktop / Claude Code — ~/.claude.json</span>
+"mcpServers": {
+  "repse": {
+    "type": "http",
+    "url": "https://repse-mcp.onrender.com/connect",
+    "headers": { "Authorization": "Bearer &lt;MCP_API_KEY&gt;" }
+  }
+}</pre>
+  <p class="nota">Consulta en vivo contra la STPS — sin índice local, sin dato viejo. Latencia típica extremo a extremo: ~800 ms.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Casos de uso</h2>
+  <div class="grid">
+    <div class="card"><h3>Compras</h3><p>Validar REPSE antes de dar de alta a un proveedor o liberar una orden.</p></div>
+    <div class="card"><h3>Legal y cumplimiento</h3><p>Due diligence con evidencia fechada de la verificación.</p></div>
+    <div class="card"><h3>Cuentas por pagar</h3><p>Bloquear el pago si el proveedor perdió vigencia entre el alta y la factura.</p></div>
+    <div class="card"><h3>Agentes</h3><p>Que el agente responda “¿está vigente el proveedor X?” y accione el flujo.</p></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <p><b>WATR</b> — We Are The Robots Inc. · Suite MCP de cumplimiento: REPSE · <a href="https://sat69.watr.mx">SAT 69/69-B</a></p>
+  <p class="nota">Esta herramienta informa; no emite la constancia oficial ni sustituye la verificación directa en repse.stps.gob.mx ni el criterio legal o fiscal. No afiliada a la STPS ni a ninguna entidad gubernamental.</p>
+</div></footer>
+</body>
+</html>

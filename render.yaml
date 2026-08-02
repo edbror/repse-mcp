@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: repse-mcp
+    # Runtime Python nativo: sin DB, sin OCR, sin navegador headless — el padron
+    # se consulta en vivo por JSON. No hace falta Docker.
+    runtime: python
+    plan: free            # sube a "starter" para always-on
+    region: ohio
+
+    buildCommand: "pip install --upgrade pip && pip install ."
+    startCommand: "repse-web"
+
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # ── Auth ──────────────────────────────────────────────────────────────
+      - key: MCP_API_KEY
+        sync: false          # bearer estatico: protege /connect si OAuth off
+
+      # ── OAuth (WorkOS AuthKit) — opcional ─────────────────────────────────
+      - key: AUTHKIT_DOMAIN
+        sync: false
+      - key: BASE_URL
+        value: "https://repse-mcp.onrender.com"
+
+      # ── Fuente ────────────────────────────────────────────────────────────
+      - key: REPSE_BASE_URL
+        value: "https://repse.stps.gob.mx/"
+      - key: FETCH_PROXY
+        sync: false          # opcional; la STPS no bloqueo datacenter en pruebas
+
+      # ── Tuning ────────────────────────────────────────────────────────────
+      - key: DIAS_ALERTA
+        value: "60"
+      - key: BATCH_CONCURRENCY
+        value: "4"
+      - key: LOG_LEVEL
+        value: "info"
+      - key: PYTHON_VERSION
+        value: "3.13.1"

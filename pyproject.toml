@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "repse-mcp"
+version = "0.1.0"
+description = "MCP server para consulta del Padrón Público REPSE (STPS) — WATR"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+    "fastmcp>=3.0",
+    "httpx>=0.27",
+    # Servidor web (despliegue en Render)
+    "uvicorn[standard]>=0.30",
+    "starlette>=0.40",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+# stdio transport (Claude Desktop / Claude Code)
+repse-mcp = "repse.server:main"
+# Streamable HTTP transport (Render / apps web)
+repse-web = "repse.web:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repse"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
