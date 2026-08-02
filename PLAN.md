@@ -23,7 +23,11 @@ Consecuencia: **sin base de datos, sin Turso, sin pipeline de ingesta, sin naveg
 - [x] Tools: `verificar_repse`, `verificar_lote`, `buscar_padron`, `estado_fuente`
 - [x] Tests (13) + ruff + CI en PR
 - [x] Landing de venta en `/`, `/health`, MCP en `/connect`
-- [ ] Deploy en Render + `repse.watr.mx` (Cloudflare Worker)
+- [x] Deploy en Render + `repse.watr.mx` (Cloudflare Worker)
+
+## Fase 2 — Índice local ✅ (2026-08-02)
+
+Se adelantó: la descarga existe y es pública — `GET /padron-public-excel` (xlsx ~26 MB, 155,558 filas, SIN columna RFC). Implementado en `padron.py`: SQLite+FTS5, rebuild-on-boot **sin Turso** (la fuente parsea en ~8 s; Turso queda como fallback si la STPS bloquea datacenter), guards de frescura, `/refresh` + cron diario en Actions. Tools: `buscar_padron` local paginado y `por_vencer`. Ver `SPEC.md` v2.
 
 ## Fase 2 — sólo si el uso lo pide
 
