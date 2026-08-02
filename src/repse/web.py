@@ -5,6 +5,8 @@ Envuelve el servidor FastMCP con:
   • Transporte Streamable HTTP en /connect (igual que sat69 y SSC).
   • Bearer estático (MCP_API_KEY) selectivo por ruta.
   • Landing de venta en / y /health sin auth.
+  • /refresh (bearer siempre) para reconstruir el índice local; al boot se
+    reconstruye en hilo daemon si está vacío o viejo (rebuild-on-boot, sin Turso).
 
 Arranque:
     python -m repse.web   |   repse-web
@@ -13,6 +15,8 @@ Arranque:
 from __future__ import annotations
 
 import logging
+import threading
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import uvicorn
@@ -42,6 +46,8 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
     def _needs_static_bearer(self, path: str) -> bool:
         if path in ("/", "/health"):
             return False
+        if path == "/refresh":
+            return True  # máquina-a-máquina (cron de Actions): bearer siempre
         return not settings.oauth_enabled
 
     async def dispatch(self, request: Request, call_next):
@@ -72,7 +78,57 @@ async def _landing(request: Request) -> HTMLResponse:
 
 async def _health(request: Request) -> PlainTextResponse:
     """Health check: NO consulta a la STPS (Render lo pega cada minuto)."""
-    return PlainTextResponse(f"ok\nfuente: {settings.base_url}\nmodo: live")
+    from . import padron
+
+    est = padron.estado()
+    return PlainTextResponse(
+        "\n".join(
+            [
+                "ok",
+                f"fuente: {settings.base_url}",
+                f"indice: {est['filas']} filas",
+                f"import: {est['ultima_importacion'] or 'never'}",
+            ]
+        )
+    )
+
+
+async def _refresh(request: Request) -> JSONResponse:
+    """Reconstruye el índice local descargando el padrón (bearer obligatorio)."""
+    from starlette.concurrency import run_in_threadpool
+
+    from . import padron
+
+    logger.info("Refresh del padrón solicitado")
+    try:
+        result = await run_in_threadpool(padron.importar)
+        return JSONResponse(result)
+    except padron.ImportError_ as exc:
+        logger.error("Refresh falló: %s", exc)
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=502)
+
+
+def _startup_index() -> None:
+    """Rebuild-on-boot: reconstruye el índice si está vacío o viejo. Hilo daemon
+    para que uvicorn abra el puerto de inmediato (Render free reinicia si no)."""
+    from . import padron
+
+    if not settings.fetch_on_startup:
+        return
+    est = padron.estado()
+    stale = True
+    if est["ultima_importacion"]:
+        edad = datetime.now(UTC) - datetime.fromisoformat(est["ultima_importacion"])
+        stale = edad > timedelta(hours=settings.max_edad_horas)
+    if est["filas"] > 0 and not stale:
+        logger.info("Índice con %d filas y fresco — sin rebuild", est["filas"])
+        return
+    logger.info("Índice vacío o viejo — reconstruyendo en segundo plano…")
+    try:
+        result = padron.importar()
+        logger.info("Rebuild terminó: %s filas", result.get("filas"))
+    except Exception as exc:  # noqa: BLE001 — el servicio degrada a modo vivo
+        logger.error("Rebuild del índice falló (las tools en vivo siguen): %s", exc)
 
 
 async def _oauth_protected_resource_root(request: Request) -> JSONResponse:
@@ -99,6 +155,7 @@ def create_app() -> Starlette:
     routes = [
         Route("/", _landing, methods=["GET"]),
         Route("/health", _health, methods=["GET"]),
+        Route("/refresh", _refresh, methods=["POST"]),
     ]
     if settings.oauth_enabled:
         routes.append(
@@ -118,6 +175,7 @@ def create_app() -> Starlette:
 
 def main() -> None:
     logging.basicConfig(level=settings.log_level, format="%(asctime)s [%(levelname)s] %(message)s")
+    threading.Thread(target=_startup_index, name="startup-index", daemon=True).start()
     uvicorn.run(
         create_app(),
         host=settings.host,

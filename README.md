@@ -31,7 +31,7 @@ POST /buscar-padron   razon_social=<id>  → detalle + actividades autorizadas
 
 Consecuencia: **no hay base de datos, ni Turso, ni pipeline de ingesta, ni navegador headless.** Cada consulta va en vivo al padrón, así que la frescura del dato es total y no hay índice que se quede viejo. Se paga con latencia (~1 s) en vez de infraestructura.
 
-> Un índice local sólo se justifica si hace falta búsqueda masiva sobre todo el padrón o monitoreo de vencimientos — ver `PLAN.md` fase 2.
+> Para búsqueda masiva y ventanas de vencimiento existe el **índice local** (`padron.py`): SQLite+FTS5 reconstruido desde el xlsx público `GET /padron-public-excel` (~155k filas), rebuild-on-boot + cron diario. Ver `SPEC.md` §2.
 
 ### La trampa del campo `registro`
 
