@@ -2,10 +2,11 @@
 Servidor FastMCP — Padrón Público REPSE (STPS).
 
 Tools expuestas:
-  • verificar_repse   — un RFC/folio/razón social → veredicto de vigencia
-  • verificar_lote    — cartera de proveedores → sólo lo que requiere acción
-  • buscar_padron     — búsqueda por razón social (typeahead del padrón)
-  • estado_fuente     — salud y latencia del portal de la STPS
+  • verificar_repse   — un RFC/folio/razón social → veredicto de vigencia (EN VIVO)
+  • verificar_lote    — cartera de proveedores → sólo lo que requiere acción (EN VIVO)
+  • buscar_padron     — búsqueda masiva en el índice local (FTS5, paginada)
+  • por_vencer        — registros del índice cuya vigencia cae en una ventana
+  • estado_fuente     — salud del portal en vivo + frescura del índice local
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastmcp import FastMCP
 
+from . import padron
 from .client import RepseError, get_client
 from .config import settings
 from .consulta import consultar
@@ -131,57 +133,95 @@ def verificar_lote(rfcs: list[str]) -> dict:
 
 
 @mcp.tool
-def buscar_padron(texto: str, limite: int = 20) -> dict:
-    """Busca en el padrón por razón social (o fragmento de RFC/folio).
+def buscar_padron(
+    texto: str, entidad: str | None = None, limite: int = 20, offset: int = 0
+) -> dict:
+    """Búsqueda masiva en el padrón por razón social o actividad, con paginación.
 
     Args:
-        texto: nombre, razón social, RFC o folio (búsqueda parcial).
-        limite: máximo de coincidencias a devolver (default 20).
+        texto: palabras a buscar en razón social o actividades (ej. "limpieza industrial").
+        entidad: filtro opcional por estado (ej. "Jalisco").
+        limite: resultados por página (máx 100).
+        offset: desplazamiento para paginar.
 
     Returns:
-        Coincidencias con su id interno; usa `verificar_repse` para el veredicto.
+        Coincidencias del índice local (folio, razón social, ubicación, vigencia,
+        actividades). Usa `verificar_repse` con el folio para el veredicto con RFC.
     """
-    try:
-        resultados = get_client().buscar(texto)
-    except RepseError as exc:
-        return {"texto": texto, "error": str(exc), "resultados": []}
+    filas = padron.buscar(texto, entidad=entidad, limite=limite, offset=offset)
+    if filas:
+        return {
+            "texto": texto,
+            "fuente": "indice_local",
+            "total_pagina": len(filas),
+            "offset": offset,
+            "resultados": filas,
+        }
+    # Índice vacío (primer boot) → fallback al typeahead en vivo (tapa en 30).
+    if padron.estado()["filas"] == 0:
+        try:
+            vivos = get_client().buscar(texto)
+        except RepseError as exc:
+            return {"texto": texto, "error": str(exc), "resultados": []}
+        return {
+            "texto": texto,
+            "fuente": "typeahead_vivo (índice aún no construido; tapa en 30)",
+            "total_pagina": len(vivos[: max(1, limite)]),
+            "resultados": [
+                {"id": r.get("id"), "razon_social": r.get("text")} for r in vivos[: max(1, limite)]
+            ],
+        }
+    return {"texto": texto, "fuente": "indice_local", "total_pagina": 0, "resultados": []}
+
+
+@mcp.tool
+def por_vencer(dias: int = 60, entidad: str | None = None, limite: int = 50) -> dict:
+    """Registros del padrón cuya vigencia vence dentro de la ventana dada.
+
+    Args:
+        dias: tamaño de la ventana desde hoy (default 60).
+        entidad: filtro opcional por estado.
+        limite: máximo de registros (máx 200), ordenados por fecha de vencimiento.
+
+    Returns:
+        Registros próximos a vencer — insumo para pedir renovaciones a tiempo.
+    """
+    filas = padron.por_vencer(dias=dias, entidad=entidad, limite=limite)
+    est = padron.estado()
     return {
-        "texto": texto,
-        "total": len(resultados),
-        "resultados": [
-            {"id": r.get("id"), "razon_social": r.get("text")} for r in resultados[: max(1, limite)]
-        ],
-        "nota": "El typeahead no expone el RFC; usa verificar_repse para confirmarlo.",
+        "ventana_dias": dias,
+        "total": len(filas),
+        "resultados": filas,
+        "indice": est,
+        "nota": "El xlsx del padrón no trae RFC; confirma con verificar_repse(folio).",
     }
 
 
 @mcp.tool
 def estado_fuente() -> dict:
-    """Salud del portal de la STPS: disponibilidad y latencia de la consulta.
+    """Salud del portal en vivo de la STPS + frescura del índice local.
 
     Returns:
-        Estado, latencia en ms y la URL de la fuente. No hay índice local: cada
-        consulta va en vivo al padrón, así que la frescura del dato es total.
+        Latencia del portal (usado por verificar_repse/verificar_lote) y estado
+        del índice local (usado por buscar_padron/por_vencer): filas, última
+        importación y vigencia máxima.
     """
     inicio = time.perf_counter()
     try:
         # Sonda barata contra un término que siempre existe en el padrón.
         resultados = get_client().buscar("SERVICIOS")
-        ms = round((time.perf_counter() - inicio) * 1000)
-        return {
+        vivo = {
             "status": "ok" if resultados else "degradado",
-            "latencia_ms": ms,
+            "latencia_ms": round((time.perf_counter() - inicio) * 1000),
             "muestra": len(resultados),
-            "fuente": settings.base_url,
-            "frescura": "en vivo (sin índice local)",
         }
     except RepseError as exc:
-        return {
+        vivo = {
             "status": "error",
             "latencia_ms": round((time.perf_counter() - inicio) * 1000),
             "error": str(exc),
-            "fuente": settings.base_url,
         }
+    return {"fuente": settings.base_url, "portal_vivo": vivo, "indice_local": padron.estado()}
 
 
 def main() -> None:

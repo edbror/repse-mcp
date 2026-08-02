@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Portal público del REPSE. Overrideable por env: la STPS ya movió rutas antes
 # (la `/Publico` que cita la spec original hoy da 404) y el equivalente en
@@ -21,6 +24,9 @@ BASE_URL = os.getenv("REPSE_BASE_URL", "https://repse.stps.gob.mx/")
 #   POST buscar-padron  (razon_social=<id>)  → detalle + actividades autorizadas
 PATH_BUSCAR = os.getenv("REPSE_PATH_BUSCAR", "busca_razon_social")
 PATH_DETALLE = os.getenv("REPSE_PATH_DETALLE", "buscar-padron")
+# Descarga del padrón completo (.xlsx, ~26 MB, ~155k filas). Ruta no enlazada
+# en el home; descubierta vía índice de buscadores. Overrideable por env.
+PATH_PADRON_XLSX = os.getenv("REPSE_PATH_PADRON_XLSX", "padron-public-excel")
 
 
 def _env_int(name: str, default: int) -> int:
@@ -48,7 +54,17 @@ class Settings:
     base_url: str = BASE_URL
     path_buscar: str = PATH_BUSCAR
     path_detalle: str = PATH_DETALLE
+    path_padron_xlsx: str = PATH_PADRON_XLSX
     http_timeout: int = _env_int("HTTP_TIMEOUT", 30)
+    download_timeout: int = _env_int("DOWNLOAD_TIMEOUT", 300)
+
+    # --- Índice local (SQLite; efímero /tmp en Render, rebuild-on-boot) ---
+    db_path: Path = Path(os.getenv("DB_PATH", str(_REPO_ROOT / "data" / "repse.db")))
+    fetch_on_startup: bool = _env_bool("FETCH_ON_STARTUP", True)
+    # Guard de frescura: el corte real trae ~155k filas; menos de esto = fuente rota.
+    min_filas: int = _env_int("MIN_FILAS", 100_000)
+    # Índice más viejo que esto (horas) dispara rebuild al boot.
+    max_edad_horas: int = _env_int("MAX_EDAD_HORAS", 26)
     # Cortesía con un portal de gobierno: tope de concurrencia en lote.
     batch_concurrency: int = _env_int("BATCH_CONCURRENCY", 4)
     # Días antes del vencimiento en que un registro se marca POR_VENCER.
@@ -76,6 +92,10 @@ class Settings:
 
     def url(self, path: str) -> str:
         return self.base_url.rstrip("/") + "/" + path.lstrip("/")
+
+    @property
+    def url_padron(self) -> str:
+        return self.url(self.path_padron_xlsx)
 
 
 settings = Settings()
