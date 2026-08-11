@@ -2,11 +2,12 @@
 Servidor FastMCP — Padrón Público REPSE (STPS).
 
 Tools expuestas:
-  • verificar_repse   — un RFC/folio/razón social → veredicto de vigencia (EN VIVO)
-  • verificar_lote    — cartera de proveedores → sólo lo que requiere acción (EN VIVO)
-  • buscar_padron     — búsqueda masiva en el índice local (FTS5, paginada)
-  • por_vencer        — registros del índice cuya vigencia cae en una ventana
-  • estado_fuente     — salud del portal en vivo + frescura del índice local
+  • verificar_repse     — un RFC/folio/razón social → veredicto de vigencia (EN VIVO)
+  • verificar_proveedor — cruce REPSE × SAT 69/69-B → decisión única de debida diligencia
+  • verificar_lote      — cartera de proveedores → sólo lo que requiere acción (EN VIVO)
+  • buscar_padron       — búsqueda masiva en el índice local (FTS5, paginada)
+  • por_vencer          — registros del índice cuya vigencia cae en una ventana
+  • estado_fuente       — salud del portal en vivo + frescura del índice local
 """
 
 from __future__ import annotations
@@ -17,7 +18,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastmcp import FastMCP
 
-from . import padron
+from . import cruce as cruce_mod
+from . import padron, sat69
 from .client import RepseError, get_client
 from .config import settings
 from .consulta import consultar
@@ -102,6 +104,31 @@ def verificar_repse(termino: str) -> dict:
     except RepseError as exc:
         logger.error("verificar_repse(%s) falló: %s", termino, exc)
         return {"consulta": termino, "error": str(exc), "vigente": None}
+
+
+@mcp.tool
+async def verificar_proveedor(rfc: str) -> dict:
+    """Debida diligencia completa: cruce REPSE (STPS) × listas SAT 69/69-B.
+
+    Un proveedor REPSE-vigente que es EFOS definitivo sigue siendo un "no", y
+    un LIMPIO en el SAT no salva a un REPSE vencido — por eso el cruce.
+
+    Args:
+        rfc: RFC del proveedor (física o moral).
+
+    Returns:
+        `decision` (APROBADO / REVISAR / RECHAZADO / INCOMPLETO) con las
+        razones y los dos veredictos completos. INCOMPLETO significa que un
+        lado no se pudo consultar: no aprobar hasta completarlo.
+    """
+    from starlette.concurrency import run_in_threadpool
+
+    try:
+        lado_repse = await run_in_threadpool(consultar, rfc)
+    except RepseError as exc:
+        lado_repse = {"vigente": False, "estado": "ERROR", "veredicto": str(exc)}
+    lado_sat = await sat69.verificar_rfc(normalizar_rfc(rfc))
+    return {"rfc": normalizar_rfc(rfc), **cruce_mod.combinar(lado_repse, lado_sat)}
 
 
 @mcp.tool
