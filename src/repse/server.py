@@ -34,15 +34,33 @@ def _build_auth():
     """Provider OAuth (WorkOS AuthKit) si está configurado, o None."""
     if not settings.oauth_enabled:
         return None
+    import secrets as _secrets
+
+    from fastmcp.server.auth import AccessToken
     from fastmcp.server.auth.providers.workos import AuthKitProvider, WorkOSTokenVerifier
 
     logger.info("OAuth habilitado vía AuthKit (%s)", settings.authkit_domain)
+
+    class DualVerifier(WorkOSTokenVerifier):
+        """Acepta el MCP_API_KEY estático (servidor-a-servidor) O un token OAuth.
+
+        Con OAuth encendido, FastMCP es el único guardián de /connect y el
+        verifier por defecto rechazaba la key estática con 401 invalid_token —
+        las apps máquina-a-máquina (sin flujo authorization_code) quedaban
+        fuera. Se checa la key primero (compare_digest) y si no, AuthKit.
+        """
+
+        async def verify_token(self, token: str) -> AccessToken | None:
+            if settings.mcp_api_key and _secrets.compare_digest(token, settings.mcp_api_key):
+                return AccessToken(token=token, client_id="watr-static-key", scopes=[])
+            return await super().verify_token(token)
+
     # Igual que sat69/SSC: verificamos por userinfo, sin chequeo de audience, para
     # NO tener que registrar resource indicators en WorkOS (hacerlo rompió SSC).
     return AuthKitProvider(
         authkit_domain=settings.authkit_domain,
         base_url=settings.base_url_public,
-        token_verifier=WorkOSTokenVerifier(authkit_domain=settings.authkit_domain),
+        token_verifier=DualVerifier(authkit_domain=settings.authkit_domain),
     )
 
 
