@@ -29,10 +29,13 @@ Consecuencia: **sin base de datos, sin Turso, sin pipeline de ingesta, sin naveg
 
 Se adelantó: la descarga existe y es pública — `GET /padron-public-excel` (xlsx ~26 MB, 155,558 filas, SIN columna RFC). Implementado en `padron.py`: SQLite+FTS5, rebuild-on-boot **sin Turso** (la fuente parsea en ~8 s; Turso queda como fallback si la STPS bloquea datacenter), guards de frescura, `/refresh` + cron diario en Actions. Tools: `buscar_padron` local paginado y `por_vencer`. Ver `SPEC.md` v2.
 
-## Fase 3 — sólo si el uso lo pide
+## Fase 3 — Cruce con sat69 ✅ (2026-08-11, WE-529)
+
+Tool `verificar_proveedor(rfc)`: REPSE en vivo × SAT 69/69-B (cliente FastMCP → sat69-mcp `/connect` con bearer; env `SAT69_MCP_URL/KEY`). Veredicto determinista en `cruce.py`: APROBADO / REVISAR / RECHAZADO / INCOMPLETO — nunca aprueba con un lado sin consultar. Requirió auth dual (key estática + OAuth) en ambos MCP (repse #4, sat69 #9). Ojo: sat69 duerme 22:00–06:00 CDMX (auto-cycle de hibernación) → el cruce regresa INCOMPLETO de noche.
+
+## Fase 4 — sólo si el uso lo pide
 
 - **Monitoreo de portafolio con alertas** (suscripciones). `por_vencer` ya da la primitiva; falta sólo la capa de suscripción+notificación. Cron en Actions → endpoint en Render (nunca workers pagados).
-- **Cruce con sat69-mcp.** Un proveedor REPSE-vigente que sea EFOS definitivo sigue siendo un "no". El cruce de mayor valor y el más barato: ambos MCP ya existen.
 - **Resumen de cartera con IA.** Sólo la narrativa; el veredicto se queda determinista, como en sat69.
 - **Listado de cancelados.** La ruta de descarga no apareció (variantes de `padron-public-excel` dan 404); buscar oportunísticamente.
 
