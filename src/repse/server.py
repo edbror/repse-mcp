@@ -17,9 +17,10 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from fastmcp import FastMCP
+from fastmcp.server.dependencies import get_access_token
 
 from . import cruce as cruce_mod
-from . import padron, sat69
+from . import padron, quota, sat69
 from .client import RepseError, get_client
 from .config import settings
 from .consulta import consultar
@@ -88,6 +89,16 @@ Esto informa; no sustituye la constancia oficial ni el criterio legal.""",
 )
 
 
+def _gate() -> dict | None:
+    """Aplica el límite freemium por usuario (ver quota.py). Devuelve el dict de
+    error si se excedió —para retornarlo tal cual— o None si la consulta procede.
+    Nunca lanza: el gate de cobro jamás debe tumbar una tool."""
+    try:
+        return quota.check(get_access_token())
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @mcp.tool
 def verificar_repse(termino: str) -> dict:
     """Verifica un proveedor en el padrón REPSE por RFC, folio o razón social.
@@ -99,6 +110,8 @@ def verificar_repse(termino: str) -> dict:
         Veredicto con `vigente`, `estado`, fecha de vencimiento y las
         actividades especializadas autorizadas.
     """
+    if (g := _gate()) is not None:
+        return g
     try:
         return consultar(termino)
     except RepseError as exc:
@@ -123,6 +136,8 @@ async def verificar_proveedor(rfc: str) -> dict:
     """
     from starlette.concurrency import run_in_threadpool
 
+    if (g := await run_in_threadpool(_gate)) is not None:
+        return g
     try:
         lado_repse = await run_in_threadpool(consultar, rfc)
     except RepseError as exc:
@@ -144,6 +159,8 @@ def verificar_lote(rfcs: list[str]) -> dict:
     terminos = [t for t in (s.strip() for s in rfcs or []) if t]
     if not terminos:
         return {"total": 0, "resumen": {}, "hallazgos": [], "errores": []}
+    if (g := _gate()) is not None:
+        return g
 
     resultados: list[dict] = []
     errores: list[dict] = []
@@ -193,6 +210,8 @@ def buscar_padron(
         Coincidencias del índice local (folio, razón social, ubicación, vigencia,
         actividades). Usa `verificar_repse` con el folio para el veredicto con RFC.
     """
+    if (g := _gate()) is not None:
+        return g
     filas = padron.buscar(texto, entidad=entidad, limite=limite, offset=offset)
     if filas:
         return {
@@ -231,6 +250,8 @@ def por_vencer(dias: int = 60, entidad: str | None = None, limite: int = 50) -> 
     Returns:
         Registros próximos a vencer — insumo para pedir renovaciones a tiempo.
     """
+    if (g := _gate()) is not None:
+        return g
     filas = padron.por_vencer(dias=dias, entidad=entidad, limite=limite)
     est = padron.estado()
     return {

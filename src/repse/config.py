@@ -83,12 +83,26 @@ class Settings:
     authkit_domain: str = os.getenv("AUTHKIT_DOMAIN", "").strip()
     base_url_public: str = (os.getenv("BASE_URL") or os.getenv("MCP_BASE_URL") or "").strip()
 
+    # --- Turso (SOLO para el contador de quota; ver turso.py / quota.py) ---
+    turso_url: str = os.getenv("TURSO_DATABASE_URL", "").strip()
+    turso_token: str = os.getenv("TURSO_AUTH_TOKEN", "").strip()
+
+    # --- Freemium / quota (límite diario por usuario) ---
+    free_daily_limit: int = _env_int("REPSE_FREE_DAILY_LIMIT", 1)
+    paid_user_ids: frozenset[str] = frozenset(
+        x.strip() for x in os.getenv("REPSE_PAID_USER_IDS", "").split(",") if x.strip()
+    )
+
     log_level: str = os.getenv("LOG_LEVEL", "INFO").upper()
     verify_tls: bool = _env_bool("VERIFY_TLS", True)
 
     @property
     def oauth_enabled(self) -> bool:
         return bool(self.authkit_domain and self.base_url_public)
+
+    @property
+    def turso_enabled(self) -> bool:
+        return bool(self.turso_url)
 
     def url(self, path: str) -> str:
         return self.base_url.rstrip("/") + "/" + path.lstrip("/")
