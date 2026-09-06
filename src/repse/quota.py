@@ -11,6 +11,7 @@ Diseño defensivo (FALLA-ABIERTO): si no hay identidad, Turso está apagado, o
 algo truena, se PERMITE la consulta. Un gate de cobro nunca debe tumbar la
 herramienta; preferimos regalar una consulta a romper el servicio.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
