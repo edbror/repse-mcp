@@ -7,6 +7,7 @@ que —a diferencia de sat69— aquí Turso no guarda datos de negocio; existe
 TURSO_DATABASE_URL + TURSO_AUTH_TOKEN se habilita; si faltan, el gate falla
 abierto (ver quota.py).
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 def _normalize_url(url: str) -> str:
     for prefix in ("libsql://", "wss://"):
         if url.startswith(prefix):
-            return "https://" + url[len(prefix):]
+            return "https://" + url[len(prefix) :]
     return url
 
 
@@ -28,6 +29,7 @@ def _client():
         return None
     try:
         import libsql_client
+
         return libsql_client.create_client_sync(
             url=_normalize_url(settings.turso_url), auth_token=settings.turso_token
         )

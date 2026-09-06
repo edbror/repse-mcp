@@ -1,4 +1,5 @@
 """Tests del gate freemium (quota.py) con un Turso falso en memoria (sqlite3)."""
+
 from __future__ import annotations
 
 import dataclasses
