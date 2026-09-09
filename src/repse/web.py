@@ -7,6 +7,8 @@ Envuelve el servidor FastMCP con:
   • Landing de venta en / y /health sin auth.
   • /refresh (bearer siempre) para reconstruir el índice local; al boot se
     reconstruye en hilo daemon si está vacío o viejo (rebuild-on-boot, sin Turso).
+  • /verificar (bearer siempre) — la misma consulta que la tool, en REST plano,
+    para backends que no hablan MCP.
 
 Arranque:
     python -m repse.web   |   repse-web
@@ -52,8 +54,8 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
     def _needs_static_bearer(self, path: str) -> bool:
         if path in ("/", "/health"):
             return False
-        if path == "/refresh":
-            return True  # máquina-a-máquina (cron de Actions): bearer siempre
+        if path in ("/refresh", "/verificar"):
+            return True  # máquina-a-máquina (cron, backends): bearer siempre
         return not settings.oauth_enabled
 
     async def dispatch(self, request: Request, call_next):
@@ -116,6 +118,36 @@ async def _refresh(request: Request) -> JSONResponse:
         return JSONResponse({"success": False, "error": str(exc)}, status_code=502)
 
 
+async def _verificar(request: Request) -> JSONResponse:
+    """Consulta del padrón en REST plano, para servidor-a-servidor.
+
+    Existe porque hablar MCP desde un backend es un handshake de sesión completo
+    para una pregunta de una línea: MATERIA sólo quiere saber si un RFC tiene
+    REPSE vigente. Llama a la MISMA `consultar` que la tool `verificar_repse`,
+    sin capa de traducción, para que las dos no se puedan desincronizar.
+
+    Sin gate de quota a propósito: esta ruta exige `MCP_API_KEY`, que sólo
+    tenemos nosotros, y esa identidad ya es ilimitada en `quota._TRUSTED_CLIENT_IDS`.
+    No abre nada que la key no abriera ya.
+    """
+    from starlette.concurrency import run_in_threadpool
+
+    from .client import RepseError
+    from .consulta import consultar
+
+    termino = (request.query_params.get("rfc") or "").strip()
+    if not termino:
+        return JSONResponse({"error": "Falta el parámetro `rfc`."}, status_code=400)
+
+    try:
+        return JSONResponse(await run_in_threadpool(consultar, termino))
+    except RepseError as exc:
+        # 502, no 500: el que falló fue el portal de la STPS, no nosotros. Quien
+        # llama debe poder distinguir "no pude verificar" de "el proveedor está mal".
+        logger.error("Consulta a REPSE falló: %s", exc)
+        return JSONResponse({"error": str(exc)}, status_code=502)
+
+
 def _startup_index() -> None:
     """Rebuild-on-boot: reconstruye el índice si está vacío o viejo. Hilo daemon
     para que uvicorn abra el puerto de inmediato (Render free reinicia si no)."""
@@ -164,6 +196,7 @@ def create_app() -> Starlette:
         Route("/", _landing, methods=["GET"]),
         Route("/health", _health, methods=["GET"]),
         Route("/refresh", _refresh, methods=["POST"]),
+        Route("/verificar", _verificar, methods=["GET"]),
     ]
     if settings.oauth_enabled:
         routes.append(
