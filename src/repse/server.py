@@ -249,13 +249,33 @@ def por_vencer(dias: int = 60, entidad: str | None = None, limite: int = 50) -> 
 
     Returns:
         Registros próximos a vencer — insumo para pedir renovaciones a tiempo.
+        Lee `indice_listo` ANTES de concluir: si es false el índice se está
+        reconstruyendo y una lista vacía no significa que no haya vencimientos.
     """
     if (g := _gate()) is not None:
         return g
-    filas = padron.por_vencer(dias=dias, entidad=entidad, limite=limite)
     est = padron.estado()
+    if not est["filas"]:
+        # El índice vive en /tmp y Render recicla la instancia: tras un arranque
+        # en frío el daemon tarda ~2 min en reconstruirlo. Un cero callado se
+        # lee igual que "no hay nada por vencer" — la conclusión opuesta, y en
+        # una tool de vencimientos el falso negativo más caro que existe.
+        return {
+            "ventana_dias": dias,
+            "indice_listo": False,
+            "total": 0,
+            "resultados": [],
+            "indice": est,
+            "nota": (
+                "El índice del padrón está reconstruyéndose (arranque en frío, ~2 min). "
+                "Esto NO significa que no haya registros por vencer: vuelve a consultar. "
+                "Para un RFC en concreto, verificar_repse va en vivo y no depende del índice."
+            ),
+        }
+    filas = padron.por_vencer(dias=dias, entidad=entidad, limite=limite)
     return {
         "ventana_dias": dias,
+        "indice_listo": True,
         "total": len(filas),
         "resultados": filas,
         "indice": est,
