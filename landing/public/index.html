@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>REPSE MCP — verifica proveedores REPSE desde tu agente | WATR</title>
-<meta name="description" content="MCP server que consulta el Padrón Público REPSE de la STPS en vivo. Verifica vigencia por RFC, en lote, desde Claude o cualquier cliente MCP.">
+<meta name="description" content="MCP server que consulta el Padrón Público REPSE de la STPS en vivo y lo cruza con las listas SAT 69/69-B. Vigencia por RFC o por cartera, desde Claude o cualquier cliente MCP.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://repse.watr.mx">
 <meta property="og:title" content="REPSE MCP — ¿tu proveedor está vigente en el padrón de la STPS?">
-<meta property="og:description" content="Consulta el Padrón REPSE de la STPS en vivo: vigencia + actividad autorizada. Desde tu agente, ERP o flujo de alta de proveedores.">
+<meta property="og:description" content="Consulta el Padrón REPSE de la STPS en vivo: vigencia + actividad autorizada, cruzada con las listas SAT 69/69-B. Desde tu agente, ERP o flujo de alta de proveedores.">
 <meta property="og:image" content="https://repse.watr.mx/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="REPSE MCP — verifica proveedores REPSE">
-<meta name="twitter:description" content="Vigencia + actividad autorizada del padrón de la STPS, en vivo.">
+<meta name="twitter:description" content="Vigencia + actividad autorizada del padrón de la STPS, en vivo, cruzada con el 69-B del SAT.">
 <meta name="twitter:image" content="https://repse.watr.mx/og-image.png">
 <style>
   :root{--navy:#0E1B2C;--verde:#2E9E6B;--hueso:#F5F3EF;--gris:#8A94A6;--linea:#1E2C40}
@@ -32,7 +32,7 @@
   .btn-s{border:1px solid var(--linea);color:var(--hueso)}
   section{padding:56px 0;border-bottom:1px solid var(--linea)}
   h2{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--verde);font-family:"IBM Plex Mono",Menlo,monospace;margin-bottom:28px;font-weight:500}
-  .grid{display:grid;gap:24px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .grid{display:grid;gap:24px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
   .card{border:1px solid var(--linea);padding:22px;border-radius:2px}
   .card h3{font-size:15px;margin-bottom:8px;font-family:"IBM Plex Mono",Menlo,monospace;color:var(--hueso);font-weight:500}
   .card p{font-size:14.5px;color:var(--gris);line-height:1.55}
@@ -53,7 +53,7 @@
 <header><div class="wrap">
   <div class="eyebrow">WATR · MCP Suite</div>
   <h1>Verifica REPSE antes de dar de alta o pagar a un proveedor.</h1>
-  <p class="lede">MCP server que consulta el Padrón Público de Contratistas de Servicios Especializados de la STPS <b>en vivo</b>, desde Claude o cualquier cliente MCP. Un RFC o una cartera completa, con veredicto accionable.</p>
+  <p class="lede">MCP server que consulta el Padrón Público de Contratistas de Servicios Especializados de la STPS <b>en vivo</b>, desde Claude o cualquier cliente MCP. Un RFC o una cartera completa, con veredicto accionable — y el cruce con las listas <b>SAT 69/69-B</b> en la misma llamada.</p>
   <div class="cta">
     <a class="btn btn-p" href="#conectar">Conectar</a>
     <a class="btn btn-s" href="https://repse.stps.gob.mx/" target="_blank" rel="noopener">Fuente oficial STPS</a>
@@ -66,22 +66,30 @@
     <div class="card"><h3>Hoy es manual</h3><p>Entrar al portal, capturar RFC por RFC, leer la fecha e interpretarla. No escala a un catálogo de compras.</p></div>
     <div class="card"><h3>El costo del error</h3><p>Sin REPSE vigente, el contratante pierde la deducción de IVA e ISR de esas facturas y asume responsabilidad solidaria como patrón.</p></div>
     <div class="card"><h3>Vence sin avisar</h3><p>El registro dura 3 años y exige declaración cuatrimestral. Un proveedor aprobado hace un año puede estar vencido hoy.</p></div>
+    <div class="card"><h3>REPSE vigente no es suficiente</h3><p>Un proveedor al corriente ante la STPS puede estar en la lista 69-B del SAT como EFOS definitivo: sus CFDI no producen efectos fiscales. Una fuente sola no decide.</p></div>
   </div>
 </div></section>
 
 <section><div class="wrap">
   <h2>Tools</h2>
   <ul>
+    <li><b class="mono">verificar_proveedor(rfc)</b> — debida diligencia completa en una llamada: cruza REPSE (STPS) con las listas <b>SAT 69 y 69-B</b> y devuelve una decisión única.</li>
     <li><b class="mono">verificar_repse(termino)</b> — RFC, folio o razón social → vigencia, fecha de vencimiento y actividades especializadas autorizadas.</li>
     <li><b class="mono">verificar_lote(rfcs)</b> — cartera completa → conteos y <b>sólo</b> los proveedores que requieren acción.</li>
-    <li><b class="mono">buscar_padron(texto)</b> — búsqueda por razón social en el padrón.</li>
-    <li><b class="mono">estado_fuente()</b> — disponibilidad y latencia del portal de la STPS.</li>
+    <li><b class="mono">por_vencer(dias)</b> — qué registros del padrón vencen en la ventana que pidas, para pedir renovaciones antes y no después.</li>
+    <li><b class="mono">buscar_padron(texto)</b> — búsqueda por razón social o actividad en el padrón completo, paginada.</li>
+    <li><b class="mono">estado_fuente()</b> — disponibilidad y latencia del portal de la STPS, y frescura del padrón.</li>
   </ul>
   <div class="estados">
     <span class="tag ok">VIGENTE</span><span class="tag">POR_VENCER</span>
     <span class="tag bad">VENCIDO</span><span class="tag bad">SIN_REGISTRO</span><span class="tag">INDETERMINADO</span>
   </div>
   <p class="nota">El booleano <span class="mono">vigente</span> es el que debe gobernar un bloqueo de alta o de pago. Verifica además que la actividad autorizada cubra el servicio contratado: vigente para limpieza industrial no autoriza vigilancia.</p>
+  <div class="estados" style="margin-top:22px">
+    <span class="tag ok">APROBADO</span><span class="tag">REVISAR</span>
+    <span class="tag bad">RECHAZADO</span><span class="tag">INCOMPLETO</span>
+  </div>
+  <p class="nota">Las cuatro decisiones del cruce, deterministas y sin IA. <span class="mono">INCOMPLETO</span> significa que una de las dos fuentes no se pudo consultar: nunca se aprueba a ciegas, porque “no pude verificar” no es “está limpio”.</p>
 </div></section>
 
 <section id="conectar"><div class="wrap">
@@ -94,7 +102,7 @@
     "headers": { "Authorization": "Bearer &lt;MCP_API_KEY&gt;" }
   }
 }</pre>
-  <p class="nota">Consulta en vivo contra la STPS — sin índice local, sin dato viejo. Latencia típica extremo a extremo: ~800 ms.</p>
+  <p class="nota">La verificación por RFC va <b>en vivo</b> contra la STPS en cada llamada — no hay caché que se quede viejo. Latencia típica extremo a extremo: ~800 ms. La búsqueda masiva y la ventana de vencimientos corren sobre un índice del padrón completo (~158 mil registros) que se reconstruye a diario.</p>
 </div></section>
 
 <section><div class="wrap">
