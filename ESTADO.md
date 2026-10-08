@@ -18,6 +18,20 @@ Lo mismo que sat69: compras, alta de proveedores, due diligence, cuentas por
 pagar. Son hermanos y se complementan — un proveedor con REPSE vigente que
 además es EFOS definitivo sigue siendo un "no".
 
+## Madurez, quién paga y de qué depende
+
+> Escala común a los siete proyectos, para que se puedan comparar:
+> **idea** (spec sin código) · **cimiento** (corre, no le sirve a nadie aún) ·
+> **usable** (alguien podría usarlo hoy) · **en uso** (alguien lo usa de verdad) ·
+> **terminado** (hace lo que prometió; no crece salvo que el uso lo pida).
+
+| | |
+|---|---|
+| **Madurez** | **terminado**. Cero pendientes; su Fase 4 dice «sólo si el uso lo pide». |
+| **Quién paga** | Nadie. |
+| **De qué depende** | El portal de la STPS, consultado en vivo. sat69, para el cruce. |
+| **Qué depende de él** | Nadie hoy. El spec de MATERIA lo promete y no lo usa. |
+
 ## Dónde vive
 
 - Repo: `edbror/repse-mcp` · local: `~/mcp-servers/repse-mcp`
