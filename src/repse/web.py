@@ -9,6 +9,7 @@ Envuelve el servidor FastMCP con:
     reconstruye en hilo daemon si está vacío o viejo (rebuild-on-boot, sin Turso).
   • /verificar (bearer siempre) — la misma consulta que la tool, en REST plano,
     para backends que no hablan MCP.
+  • /verificar-lote (bearer siempre) — hasta 100 términos por llamada, en paralelo.
 
 Arranque:
     python -m repse.web   |   repse-web
@@ -54,7 +55,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
     def _needs_static_bearer(self, path: str) -> bool:
         if path in ("/", "/health"):
             return False
-        if path in ("/refresh", "/verificar"):
+        if path in ("/refresh", "/verificar", "/verificar-lote"):
             return True  # máquina-a-máquina (cron, backends): bearer siempre
         return not settings.oauth_enabled
 
@@ -75,6 +76,68 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return await call_next(request)
+
+
+# Tope por lote. Más bajo que el de sat69 (500) y a propósito: allá la consulta es
+# SQLite local; aquí **cada término abre el portal de la STPS en vivo**, con búsqueda
+# y apertura de detalle. El índice local no sirve para esto: su tabla `padron` no
+# tiene columna de RFC —el typeahead de la STPS nunca lo devuelve, sólo el detalle—
+# así que no hay forma de resolver un RFC sin ir al portal.
+#
+# 100 × ~2 s / BATCH_CONCURRENCY=4 ≈ 50 s por llamada: cabe en un request y no
+# convierte el padrón público en un blanco de carga.
+MAX_LOTE = 100
+
+
+async def _verificar_lote(request: Request) -> JSONResponse:
+    """Consulta hasta 100 términos en paralelo, reusando el pool de la tool.
+
+    Devuelve **todos** los términos, no sólo los que no están vigentes —al revés que
+    la tool `verificar_lote` del MCP. La tool le habla a un modelo, que quiere la
+    señal; esto le habla a un expediente de defensa, donde "lo verifiqué el día D y
+    estaba vigente" ES la evidencia de diligencia. Omitir los vigentes sería omitir
+    la mitad de la prueba.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from starlette.concurrency import run_in_threadpool
+
+    from .client import RepseError
+    from .consulta import consultar
+
+    try:
+        cuerpo = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Se espera un JSON con la clave `rfcs`."}, status_code=400)
+
+    terminos = cuerpo.get("rfcs") if isinstance(cuerpo, dict) else None
+    terminos = [t for t in (str(x).strip() for x in terminos or []) if t]
+    if not terminos:
+        return JSONResponse({"error": "Falta la lista `rfcs`."}, status_code=400)
+    if len(terminos) > MAX_LOTE:
+        return JSONResponse(
+            {"error": f"Máximo {MAX_LOTE} términos por lote; llegaron {len(terminos)}."},
+            status_code=400,
+        )
+
+    def _uno(termino: str) -> tuple[str, dict]:
+        try:
+            return termino, consultar(termino)
+        except RepseError as exc:
+            # 502 individual: el portal falló para ESE término. No es "no tiene
+            # REPSE" — quien llama tiene que poder distinguirlo, igual que en la
+            # ruta de uno solo.
+            return termino, {"error": str(exc), "fuente_caida": True}
+
+    def _todos() -> dict:
+        with ThreadPoolExecutor(max_workers=settings.batch_concurrency) as pool:
+            return dict(pool.map(_uno, terminos))
+
+    resultados = await run_in_threadpool(_todos)
+    caidos = sum(1 for r in resultados.values() if r.get("fuente_caida"))
+    return JSONResponse(
+        {"total": len(terminos), "fuente_caida": caidos, "resultados": resultados}
+    )
 
 
 async def _landing(request: Request) -> HTMLResponse:
@@ -197,6 +260,7 @@ def create_app() -> Starlette:
         Route("/health", _health, methods=["GET"]),
         Route("/refresh", _refresh, methods=["POST"]),
         Route("/verificar", _verificar, methods=["GET"]),
+        Route("/verificar-lote", _verificar_lote, methods=["POST"]),
     ]
     if settings.oauth_enabled:
         routes.append(
