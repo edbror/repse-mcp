@@ -135,9 +135,7 @@ async def _verificar_lote(request: Request) -> JSONResponse:
 
     resultados = await run_in_threadpool(_todos)
     caidos = sum(1 for r in resultados.values() if r.get("fuente_caida"))
-    return JSONResponse(
-        {"total": len(terminos), "fuente_caida": caidos, "resultados": resultados}
-    )
+    return JSONResponse({"total": len(terminos), "fuente_caida": caidos, "resultados": resultados})
 
 
 async def _landing(request: Request) -> HTMLResponse:
