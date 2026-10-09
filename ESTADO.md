@@ -25,8 +25,12 @@ además es EFOS definitivo sigue siendo un "no".
 > **usable** (alguien podría usarlo hoy) · **en uso** (alguien lo usa de verdad) ·
 > **terminado** (hace lo que prometió; no crece salvo que el uso lo pida).
 
+> Papeles del portafolio: **oráculo** · **componente ligero** · **plataforma pesada** · **integrador/generador**. Definidos en
+> `gbrain/brain/02-watr-and-company/strategy/two-ecosystems-compliance-and-fiscal-defense.md`.
+
 | | |
 |---|---|
+| **Papel** | **Componente ligero.** Igual que sat69: se integra solo, sin arrastrar una plataforma. |
 | **Madurez** | **terminado**. Cero pendientes; su Fase 4 dice «sólo si el uso lo pide». |
 | **Quién paga** | Nadie. |
 | **De qué depende** | El portal de la STPS, consultado en vivo. sat69, para el cruce. |
