@@ -87,6 +87,22 @@ def init_db(db_path: Path | None = None) -> sqlite3.Connection:
 # ---------------------------------------------------------------------------
 
 
+def _columna(ref: str | None, respaldo: int) -> int:
+    """Índice de columna a partir de la referencia de celda: A1→0, B1→1, AA1→26.
+
+    Sin `r` (writers que lo omiten) cae al índice consecutivo, que es el
+    comportamiento viejo y sigue siendo correcto mientras no falte una celda.
+    """
+    if not ref:
+        return respaldo
+    n = 0
+    for ch in ref:
+        if not ch.isalpha():
+            break
+        n = n * 26 + (ord(ch.upper()) - 64)
+    return n - 1 if n else respaldo
+
+
 def parse_xlsx(path: Path):
     """Itera filas del padrón como tuplas (folio, razón, entidad, mpio, vigencia, acts).
 
@@ -97,14 +113,24 @@ def parse_xlsx(path: Path):
         for _, el in ET.iterparse(sheet):
             if el.tag != _NS + "row":
                 continue
-            vals: list[str] = []
+            vals = [""] * 6
+            siguiente = 0  # respaldo si el writer omitiera el atributo r
             for c in el:
                 t = c.find(_NS + "is/" + _NS + "t")  # inline string
                 if t is None:
                     t = c.find(_NS + "v")  # numérico, por si la STPS cambia
-                vals.append((t.text or "").strip() if t is not None else "")
+                texto = (t.text or "").strip() if t is not None else ""
+                # La celda se coloca por su COLUMNA REAL, no por orden de
+                # aparición: el xlsx omite las celdas vacías, así que una fila
+                # sin Vigencia recorría todo a la izquierda y metía las
+                # Actividades en esa columna (WE-1039). Eso envenenaba el
+                # MAX(vigencia) del guard —texto ordena arriba de "2028-…"— y
+                # tumbaba el refresh diario de forma intermitente.
+                i = _columna(c.get("r"), siguiente)
+                siguiente = i + 1
+                if 0 <= i < 6:
+                    vals[i] = texto
             el.clear()
-            vals += [""] * (6 - len(vals))
             try:
                 folio = int(vals[0])
             except ValueError:
@@ -141,7 +167,17 @@ def descargar_xlsx(destino: Path) -> None:
 
 
 def _max_vigencia(conn: sqlite3.Connection) -> str | None:
-    row = conn.execute("SELECT MAX(vigencia) AS m FROM padron").fetchone()
+    """La vigencia más alta, ignorando lo que no tenga forma de fecha.
+
+    El filtro es defensa en profundidad: con el parser arreglado no debería
+    haber basura en la columna, pero un guard que una sola fila malformada
+    puede envenenar es un mal guard — y éste ya costó un día de refresh
+    (WE-1039). El GLOB cuesta nada y vale por el siguiente corte raro.
+    """
+    row = conn.execute(
+        "SELECT MAX(vigencia) AS m FROM padron "
+        "WHERE vigencia GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'"
+    ).fetchone()
     return row["m"] if row else None
 
 
