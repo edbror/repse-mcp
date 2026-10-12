@@ -26,7 +26,7 @@ además es EFOS definitivo sigue siendo un "no".
 > **terminado** (hace lo que prometió; no crece salvo que el uso lo pida).
 
 > Papeles del portafolio: **oráculo** · **componente ligero** · **plataforma pesada** · **integrador/generador**. Definidos en
-> `gbrain/brain/02-watr-and-company/strategy/two-ecosystems-compliance-and-fiscal-defense.md`.
+> `gbrain/brain/02-watr-and-company/strategy/regtech-and-fiscal-defense-portfolio.md`.
 
 | | |
 |---|---|
