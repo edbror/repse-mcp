@@ -11,7 +11,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://repse-mcp.onrender.com/connect"
+      "url": "https://repse.watr.mx/connect"
     }
   ]
 }
