@@ -1,10 +1,18 @@
 name = "repse-landing"
 account_id = "f70ea6062f11ed4c504876390978f0d8"  # We Are The Robots
 compatibility_date = "2026-01-01"
+main = "src/worker.js"
 
 routes = [
   { pattern = "repse.watr.mx", custom_domain = true }
 ]
 
+# ⚠️ `routes` va ANTES de [assets]: anexado al final cae DENTRO de la tabla y
+# wrangler lo ignora en silencio, que ya nos costó un dominio sin conectar.
+#
+# run_worker_first: el Worker corre primero para poder proxyar /connect al MCP
+# en Render (ver src/worker.js); la landing estática sale por el binding ASSETS.
 [assets]
 directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
