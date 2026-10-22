@@ -74,6 +74,16 @@ class Settings:
     # en pruebas, se deja por si geo/rate-limita).
     fetch_proxy: str = os.getenv("FETCH_PROXY", "").strip()
 
+    # --- Centinela (cribado contra 38 listas restrictivas) ---
+    # Sin llave NO se deshabilita el cruce: Centinela tiene carril anónimo con
+    # razonador determinista y 10 consultas por minuto. La llave solo cambia el
+    # carril y el límite. Ver centinela.py.
+    centinela_url: str = os.getenv(
+        "CENTINELA_API_URL", "https://centinela-api-op1b.onrender.com"
+    ).rstrip("/")
+    centinela_key: str = os.getenv("CENTINELA_API_KEY", "").strip()
+    centinela_timeout: int = _env_int("CENTINELA_TIMEOUT", 60)
+
     # --- HTTP / despliegue ---
     mcp_api_key: str = os.getenv("MCP_API_KEY", "").strip()
     host: str = os.getenv("HOST", "0.0.0.0")
