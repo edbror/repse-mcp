@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "repse-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP server para consulta del Padrón Público REPSE (STPS) — WATR"
 readme = "README.md"
 requires-python = ">=3.11"

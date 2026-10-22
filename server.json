@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.edbror/repse-mcp",
   "title": "REPSE — Padrón de la STPS (servicios especializados)",
-  "description": "Verifica proveedores en el padrón REPSE de la STPS: vigencia y actividad autorizada, en vivo.",
-  "version": "0.1.0",
+  "description": "Vigencia REPSE (STPS) en vivo, cruzada con 38 listas: SAT, sanciones, inhabilitaciones, PEP.",
+  "version": "0.2.0",
   "repository": {
     "url": "https://github.com/edbror/repse-mcp",
     "source": "github"
