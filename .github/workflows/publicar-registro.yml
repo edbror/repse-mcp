@@ -1,0 +1,64 @@
+# Publica repse-mcp en el registro oficial de MCP, sin humano.
+#
+# Publicar la v0.1.0 a mano costó dos códigos de device quemados esperando a
+# que alguien autorizara dentro de la ventana: `mcp-publisher login github` es
+# interactivo por diseño. `login github-oidc` usa el token OIDC del runner en
+# su lugar, así que no hay device code, no hay PAT guardado y no hay secreto
+# que rotar.
+#
+# El camino normal es taggear una versión. El workflow_dispatch existe para
+# re-correrlo si algo falla a medias.
+#
+# ⚠️ El registro RECHAZA republicar una versión que ya existe. Un dispatch sin
+# cambio de versión falla en el último paso, y eso es correcto: lo que importa
+# verificar ahí es que el login por OIDC pase.
+name: publicar-registro
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  publicar:
+    name: Publicar en el registro MCP
+    runs-on: ubuntu-latest
+    permissions:
+      # Esto es lo que habilita OIDC. Sin id-token: write el login falla y el
+      # mensaje no dice que el problema son los permisos.
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Instalar mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      # Sólo en tags: el nombre del tag manda sobre lo que diga server.json.
+      # Sin esto, taggear v0.2.0 republicaría la versión vieja y el registro lo
+      # rechazaría por duplicado, con un error que no apunta a la causa.
+      - name: Sincronizar la versión del tag en server.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          jq --arg v "$VERSION" '.version = $v' server.json > server.tmp
+          mv server.tmp server.json
+          echo "server.json → $VERSION"
+
+      - name: Autenticar por OIDC
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publicar
+        run: ./mcp-publisher publish
+
+      - name: Confirmar que quedó en el registro
+        run: |
+          sleep 5
+          curl -sS --fail-with-body --max-time 60 \
+            "https://registry.modelcontextprotocol.io/v0/servers?search=repse-mcp" \
+            | jq '[.servers[] | {name: .server.name, version: .server.version,
+                                 remoto: .server.remotes[0].url,
+                                 activo: ._meta["io.modelcontextprotocol.registry/official"].isLatest}]' \
+            | tee -a "$GITHUB_STEP_SUMMARY"
