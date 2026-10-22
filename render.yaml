@@ -31,9 +31,9 @@ services:
         sync: false          # opcional; la STPS no bloqueo datacenter en pruebas
 
       # ── Cruce sat69 (verificar_proveedor) ─────────────────────────────────
-      - key: SAT69_MCP_URL
+      - key: CENTINELA_API_URL
         value: "https://sat69-mcp.onrender.com/connect"
-      - key: SAT69_MCP_KEY
+      - key: CENTINELA_API_KEY
         sync: false          # MCP_API_KEY de sat69-mcp; sin ella el cruce degrada a INCOMPLETO
 
       # ── Tuning ────────────────────────────────────────────────────────────

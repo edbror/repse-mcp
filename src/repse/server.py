@@ -3,7 +3,7 @@ Servidor FastMCP — Padrón Público REPSE (STPS).
 
 Tools expuestas:
   • verificar_repse     — un RFC/folio/razón social → veredicto de vigencia (EN VIVO)
-  • verificar_proveedor — cruce REPSE × SAT 69/69-B → decisión única de debida diligencia
+  • verificar_proveedor — cruce REPSE × 38 listas restrictivas → decisión única
   • verificar_lote      — cartera de proveedores → sólo lo que requiere acción (EN VIVO)
   • buscar_padron       — búsqueda masiva en el índice local (FTS5, paginada)
   • por_vencer          — registros del índice cuya vigencia cae en una ventana
@@ -19,8 +19,8 @@ from concurrent.futures import ThreadPoolExecutor
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_access_token
 
+from . import centinela, padron, quota
 from . import cruce as cruce_mod
-from . import padron, quota, sat69
 from .client import RepseError, get_client
 from .config import settings
 from .consulta import consultar
@@ -121,10 +121,14 @@ def verificar_repse(termino: str) -> dict:
 
 @mcp.tool
 async def verificar_proveedor(rfc: str) -> dict:
-    """Debida diligencia completa: cruce REPSE (STPS) × listas SAT 69/69-B.
+    """Debida diligencia completa: cruce REPSE (STPS) × 38 listas restrictivas.
 
     Un proveedor REPSE-vigente que es EFOS definitivo sigue siendo un "no", y
-    un LIMPIO en el SAT no salva a un REPSE vencido — por eso el cruce.
+    un LIMPIO en las listas no salva a un REPSE vencido — por eso el cruce.
+
+    El lado de listas lo resuelve Centinela, que cubre las cuatro del SAT más
+    sanciones internacionales, inhabilitaciones y padrones PEP, y devuelve el
+    `query_id` del recibo auditable. Ver centinela.py.
 
     Args:
         rfc: RFC del proveedor (física o moral).
@@ -142,8 +146,10 @@ async def verificar_proveedor(rfc: str) -> dict:
         lado_repse = await run_in_threadpool(consultar, rfc)
     except RepseError as exc:
         lado_repse = {"vigente": False, "estado": "ERROR", "veredicto": str(exc)}
-    lado_sat = await sat69.verificar_rfc(normalizar_rfc(rfc))
-    return {"rfc": normalizar_rfc(rfc), **cruce_mod.combinar(lado_repse, lado_sat)}
+    lado_listas = await centinela.verificar_rfc(
+        normalizar_rfc(rfc), lado_repse.get("razon_social")
+    )
+    return {"rfc": normalizar_rfc(rfc), **cruce_mod.combinar(lado_repse, lado_listas)}
 
 
 @mcp.tool
