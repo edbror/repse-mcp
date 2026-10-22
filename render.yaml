@@ -30,11 +30,11 @@ services:
       - key: FETCH_PROXY
         sync: false          # opcional; la STPS no bloqueo datacenter en pruebas
 
-      # ── Cruce sat69 (verificar_proveedor) ─────────────────────────────────
+      # ── Cruce contra Centinela (verificar_proveedor) ──────────────────────
       - key: CENTINELA_API_URL
-        value: "https://sat69-mcp.onrender.com/connect"
+        value: "https://centinela-api-op1b.onrender.com"
       - key: CENTINELA_API_KEY
-        sync: false          # MCP_API_KEY de sat69-mcp; sin ella el cruce degrada a INCOMPLETO
+        sync: false          # opcional: sin llave el cruce usa el carril anónimo
 
       # ── Tuning ────────────────────────────────────────────────────────────
       - key: DIAS_ALERTA
