@@ -146,9 +146,7 @@ async def verificar_proveedor(rfc: str) -> dict:
         lado_repse = await run_in_threadpool(consultar, rfc)
     except RepseError as exc:
         lado_repse = {"vigente": False, "estado": "ERROR", "veredicto": str(exc)}
-    lado_listas = await centinela.verificar_rfc(
-        normalizar_rfc(rfc), lado_repse.get("razon_social")
-    )
+    lado_listas = await centinela.verificar_rfc(normalizar_rfc(rfc), lado_repse.get("razon_social"))
     return {"rfc": normalizar_rfc(rfc), **cruce_mod.combinar(lado_repse, lado_listas)}
 
 
