@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>REPSE MCP — verifica proveedores REPSE desde tu agente | WATR</title>
-<meta name="description" content="MCP server que consulta el Padrón Público REPSE de la STPS en vivo y lo cruza con las listas SAT 69/69-B. Vigencia por RFC o por cartera, desde Claude o cualquier cliente MCP.">
+<title>REPSE — cumplimiento de servicios especializados con evidencia | WATR</title>
+<meta name="description" content="Cumplimiento REPSE con evidencia: plataforma para equipos de compras y cumplimiento, y servidor MCP para agentes. Padrón de la STPS en vivo, cruzado con 38 listas restrictivas.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://repse.watr.mx">
-<meta property="og:title" content="REPSE MCP — ¿tu proveedor está vigente en el padrón de la STPS?">
-<meta property="og:description" content="Consulta el Padrón REPSE de la STPS en vivo: vigencia + actividad autorizada, cruzada con las listas SAT 69/69-B. Desde tu agente, ERP o flujo de alta de proveedores.">
+<meta property="og:title" content="REPSE — ¿tu proveedor está vigente, y limpio en 38 listas?">
+<meta property="og:description" content="Vigencia y actividad autorizada del padrón de la STPS, en vivo, cruzadas con 38 listas restrictivas. Como plataforma para tu equipo, o como servidor MCP para tus agentes.">
 <meta property="og:image" content="https://repse.watr.mx/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="REPSE MCP — verifica proveedores REPSE">
-<meta name="twitter:description" content="Vigencia + actividad autorizada del padrón de la STPS, en vivo, cruzada con el 69-B del SAT.">
+<meta name="twitter:title" content="REPSE — verifica proveedores de servicios especializados">
+<meta name="twitter:description" content="Padrón de la STPS en vivo, cruzado con 38 listas: SAT, sanciones, inhabilitaciones y PEP.">
 <meta name="twitter:image" content="https://repse.watr.mx/og-image.png">
 <style>
   :root{--navy:#0E1B2C;--verde:#2E9E6B;--hueso:#F5F3EF;--gris:#8A94A6;--linea:#1E2C40}
@@ -44,6 +44,15 @@
   .tag{font-family:"IBM Plex Mono",Menlo,monospace;font-size:11.5px;padding:5px 10px;border:1px solid var(--linea);border-radius:2px;color:var(--gris)}
   .tag.ok{color:var(--verde);border-color:#1E4633}
   .tag.bad{color:#E4796B;border-color:#4A2620}
+  .split{display:grid;gap:24px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:stretch}
+  .via{border:1px solid var(--linea);padding:26px;border-radius:2px;display:flex;flex-direction:column}
+  /* El producto va destacado: es la puerta de entrada para quien no programa. */
+  .via.destacada{border-color:#1E4633;background:#0C1A14}
+  .via h3{font-size:20px;margin:0 0 10px;font-weight:600;letter-spacing:-.01em;color:var(--hueso)}
+  .via .para{font-family:"IBM Plex Mono",Menlo,monospace;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--verde);margin-bottom:12px}
+  .via p{font-size:15px;color:#C9D1DE;line-height:1.6}
+  .via ul{margin:18px 0 22px} .via li{font-size:14.5px;padding:9px 0}
+  .via .btn{margin-top:auto;align-self:flex-start}
   footer{padding:40px 0 64px;color:var(--gris);font-size:13.5px}
   footer a{color:var(--gris)}
   .nota{margin-top:14px;font-size:12.5px;color:#6B7688;max-width:70ch;line-height:1.6}
@@ -51,11 +60,11 @@
 </head>
 <body>
 <header><div class="wrap">
-  <div class="eyebrow">WATR · MCP Suite</div>
+  <div class="eyebrow">WATR · Cumplimiento</div>
   <h1>Verifica REPSE antes de dar de alta o pagar a un proveedor.</h1>
-  <p class="lede">MCP server que consulta el Padrón Público de Contratistas de Servicios Especializados de la STPS <b>en vivo</b>, desde Claude o cualquier cliente MCP. Un RFC o una cartera completa, con veredicto accionable — y el cruce con las listas <b>SAT 69/69-B</b> en la misma llamada.</p>
+  <p class="lede">El Padrón de Contratistas de Servicios Especializados de la STPS, consultado <b>en vivo</b> y cruzado con <b>38 listas restrictivas</b>. Disponible de dos formas: una plataforma para tu equipo de compras y cumplimiento, y un servidor MCP para tus agentes y sistemas.</p>
   <div class="cta">
-    <a class="btn btn-p" href="#conectar">Conectar</a>
+    <a class="btn btn-p" href="#formas">Ver las dos formas</a>
     <a class="btn btn-s" href="https://repse.stps.gob.mx/" target="_blank" rel="noopener">Fuente oficial STPS</a>
   </div>
 </div></header>
@@ -66,14 +75,43 @@
     <div class="card"><h3>Hoy es manual</h3><p>Entrar al portal, capturar RFC por RFC, leer la fecha e interpretarla. No escala a un catálogo de compras.</p></div>
     <div class="card"><h3>El costo del error</h3><p>Sin REPSE vigente, el contratante pierde la deducción de IVA e ISR de esas facturas y asume responsabilidad solidaria como patrón.</p></div>
     <div class="card"><h3>Vence sin avisar</h3><p>El registro dura 3 años y exige declaración cuatrimestral. Un proveedor aprobado hace un año puede estar vencido hoy.</p></div>
-    <div class="card"><h3>REPSE vigente no es suficiente</h3><p>Un proveedor al corriente ante la STPS puede estar en la lista 69-B del SAT como EFOS definitivo: sus CFDI no producen efectos fiscales. Una fuente sola no decide.</p></div>
+    <div class="card"><h3>REPSE vigente no es suficiente</h3><p>Un proveedor al corriente ante la STPS puede ser EFOS definitivo en el 69-B, estar sancionado, inhabilitado o ser PEP. Una fuente sola no decide: por eso se cruzan 38.</p></div>
   </div>
+</div></section>
+
+<section id="formas"><div class="wrap">
+  <h2>Dos formas de usarlo</h2>
+  <div class="split">
+    <div class="via destacada">
+      <div class="para">Para tu equipo</div>
+      <h3>REPSE Sentinel</h3>
+      <p>La plataforma. Verifica a tus proveedores, vigila vigencias y actividades autorizadas, y acumula evidencia fechada y trazable frente a la STPS, el IMSS, el INFONAVIT y el SAT.</p>
+      <ul>
+        <li><b>Evidencia, no capturas de pantalla.</b> Cada consulta queda como snapshot inmutable, con hash y fecha.</li>
+        <li><b>Semáforo explicable.</b> Score desglosado por registro, congruencia contractual e informativas.</li>
+        <li><b>Vigencias y ventanas.</b> Avisos anticipados de renovación y de los periodos de ICSOE y SISUB.</li>
+      </ul>
+      <a class="btn btn-p" href="https://repse-sentinel.lovable.app" target="_blank" rel="noopener">Entrar a la plataforma</a>
+    </div>
+    <div class="via">
+      <div class="para">Para tus agentes y sistemas</div>
+      <h3>REPSE MCP</h3>
+      <p>El mismo dato, como servidor <b>MCP</b>: seis tools que tu agente, tu ERP o tu flujo de alta de proveedores pueden llamar directo. Publicado en el registro oficial de MCP.</p>
+      <ul>
+        <li><b>Consulta en vivo.</b> Cada verificación por RFC va al padrón de la STPS en el momento, sin caché que se quede viejo.</li>
+        <li><b>Padrón completo indexado.</b> Búsqueda masiva y ventanas de vencimiento sobre ~159 mil registros, reconstruidos a diario.</li>
+        <li><b>Decisión, no datos crudos.</b> El cruce devuelve APROBADO, REVISAR, RECHAZADO o INCOMPLETO, determinista y sin IA.</li>
+      </ul>
+      <a class="btn btn-s" href="#conectar">Cómo conectarlo</a>
+    </div>
+  </div>
+  <p class="nota">Las dos comen del mismo motor. Lo que cambia es quién pregunta: una persona en un panel, o un agente por protocolo.</p>
 </div></section>
 
 <section><div class="wrap">
   <h2>Tools</h2>
   <ul>
-    <li><b class="mono">verificar_proveedor(rfc)</b> — debida diligencia completa en una llamada: cruza REPSE (STPS) con las listas <b>SAT 69 y 69-B</b> y devuelve una decisión única.</li>
+    <li><b class="mono">verificar_proveedor(rfc)</b> — debida diligencia completa en una llamada: cruza REPSE (STPS) con <b>38 listas restrictivas</b> —SAT 69 y 69-B, sanciones internacionales, inhabilitaciones y padrones PEP— y devuelve una decisión única.</li>
     <li><b class="mono">verificar_repse(termino)</b> — RFC, folio o razón social → vigencia, fecha de vencimiento y actividades especializadas autorizadas.</li>
     <li><b class="mono">verificar_lote(rfcs)</b> — cartera completa → conteos y <b>sólo</b> los proveedores que requieren acción.</li>
     <li><b class="mono">por_vencer(dias)</b> — qué registros del padrón vencen en la ventana que pidas, para pedir renovaciones antes y no después.</li>
@@ -98,11 +136,11 @@
 "mcpServers": {
   "repse": {
     "type": "http",
-    "url": "https://repse-mcp.onrender.com/connect",
+    "url": "https://repse.watr.mx/connect",
     "headers": { "Authorization": "Bearer &lt;MCP_API_KEY&gt;" }
   }
 }</pre>
-  <p class="nota">La verificación por RFC va <b>en vivo</b> contra la STPS en cada llamada — no hay caché que se quede viejo. Latencia típica extremo a extremo: ~800 ms. La búsqueda masiva y la ventana de vencimientos corren sobre un índice del padrón completo (~158 mil registros) que se reconstruye a diario.</p>
+  <p class="nota">También está en el <b>registro oficial de MCP</b> como <span class="mono">io.github.edbror/repse-mcp</span>, así que muchos clientes lo encuentran solos. La verificación por RFC va <b>en vivo</b> contra la STPS en cada llamada, sin caché que se quede viejo. Latencia típica extremo a extremo: ~800 ms. La búsqueda masiva y la ventana de vencimientos corren sobre un índice del padrón completo (~159 mil registros) que se reconstruye a diario.</p>
 </div></section>
 
 <section><div class="wrap">
@@ -116,7 +154,7 @@
 </div></section>
 
 <footer><div class="wrap">
-  <p><b>WATR</b> — We Are The Robots Inc. · Suite MCP de cumplimiento: REPSE · <a href="https://sat69.watr.mx">SAT 69/69-B</a></p>
+  <p><b>WATR</b> — We Are The Robots Inc. · Cumplimiento: REPSE · <a href="https://repse-sentinel.lovable.app" target="_blank" rel="noopener">Sentinel</a> · <a href="https://sat69.watr.mx">SAT 69/69-B</a></p>
   <p class="nota">Esta herramienta informa; no emite la constancia oficial ni sustituye la verificación directa en repse.stps.gob.mx ni el criterio legal o fiscal. No afiliada a la STPS ni a ninguna entidad gubernamental.</p>
 </div></footer>
 </body>
